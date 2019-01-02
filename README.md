@@ -2,6 +2,10 @@
 
 A simple Clojure library for data mapping where it's possible to define associations, validations and callbacks.
 
+## Build
+
+[![Build Status](https://travis-ci.com/tlewin/yadm.svg?branch=master)](https://travis-ci.org/tlewin/yadm)
+
 ## Usage
 
 ```clojure
