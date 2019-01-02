@@ -37,9 +37,9 @@ The current version it's **not** production ready yet and the APIs **might chang
 
 (yadm/defdatamapper User
   :validations
-  {:name [[:required]
+  {:name [[:required]]
    :email [[:required]
-           [:format :with #"\S+@\S+\.\S+"]]]}
+           [:format :with #"\S+@\S+\.\S+"]]}
 
   :associations
   [[:has-many :product]]
