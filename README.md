@@ -6,6 +6,10 @@ A simple Clojure library for data mapping where it's possible to define associat
 
 [![Build Status](https://travis-ci.com/tlewin/yadm.svg?branch=master)](https://travis-ci.org/tlewin/yadm)
 
+## Leiningen
+
+[![Clojars Project](https://img.shields.io/clojars/v/yadm.svg)](https://clojars.org/yadm)
+
 ## Usage
 
 ```clojure
