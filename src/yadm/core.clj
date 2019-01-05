@@ -1,22 +1,23 @@
 (ns yadm.core
   (:require [honeysql.format :as sqlf]
             [honeysql.helpers :as sqlh]
-            [yadm.utils :as u]))
+            [yadm.validation :as yv]
+            [yadm.utils :as yu]))
 
 (defrecord DataMapper [settings])
 
 (defn- table-name
   [dm-name]
   (-> dm-name
-      (u/to-snake-case)
+      (yu/to-snake-case)
       (.toLowerCase)
-      (u/pluralize)
+      (yu/pluralize)
       (keyword)))
 
 (defn- entity-name
   [dm-name]
   (-> dm-name
-      (u/to-kebab-case)
+      (yu/to-kebab-case)
       (.toLowerCase)
       (keyword)))
 
@@ -53,17 +54,92 @@
   [dm setting]
   (get-in dm [:settings setting]))
 
+(deftype UpdatedValue [new-value])
+
+(defn- updated-value?
+  [value]
+  (instance? UpdatedValue value))
+
+(defn update-value
+  [value]
+  (UpdatedValue. value))
+
+(deftype HaltedValue [error])
+
+(defn- halted-execution?
+  [value]
+  (instance? HaltedValue value))
+
+(defn halt-execution
+  [error]
+  (HaltedValue. error))
+
+(defn- execute-function-pipeline
+  [initial-value fns]
+  (reduce
+   (fn [value f]
+     (let [r (f value)]
+       (cond
+         (updated-value? r) (.new-value r)
+         (halted-execution? r) (reduced r)
+         :else value)))
+   initial-value
+   fns))
+
 (defn find-where
   [db-conn query])
 
+(defn- validation-function-pipeline
+  [dm & v-options]
+  (flatten
+   [(dm-setting dm :before-validate)
+    (fn [value]
+      (let [v (apply yv/validate (flatten [(dm-setting dm :validations)
+                                           value
+                                           (or v-options [])]))]
+        (println v)
+        (if (empty? v) ;; No validation error
+          v
+          (halt-execution [:validation v]))))
+    (dm-setting dm :after-validate)]))
+
+(defn- format-pipeline-result
+  [r]
+  (if (halted-execution? r)
+    [:fail nil (.error r)]
+    [:ok   r    nil]))
+
 (defn create!
-  [db-conn dm data])
+  [db-conn dm data]
+  (-> data
+      (execute-function-pipeline
+       (flatten [(validation-function-pipeline dm)
+                 (dm-setting dm :before-create)
+                 (fn [value]
+                   #_(db-conn/create))
+                 (dm-setting dm :after-create)]))
+      (format-pipeline-result)))
 
 (defn update!
-  [db-conn dm entity-id data])
+  [db-conn dm entity-id data]
+  (-> data
+      (execute-function-pipeline
+       (flatten [(validation-function-pipeline dm :defined-fields? true)
+                 (dm-setting dm :before-update)
+                 (fn [value]
+                   #_(db-conn/update))
+                 (dm-setting dm :after-update)]))
+      (format-pipeline-result)))
 
 (defn delete!
-  [db-conn dm entity-id])
+  [db-conn dm entity-id]
+  (-> entity-id
+      (execute-function-pipeline
+       (flatten [(dm-setting dm :before-delete)
+                 (fn [value]
+                   #_(db-conn/delete))
+                 (dm-setting dm :after-delete)]))
+      (format-pipeline-result)))
 
 (defn update-where!
   [db-conn dm where-clause])
@@ -94,7 +170,7 @@
         owner-entity (dm-setting owner :entity-name)
         owner-table (dm-setting owner :table)
         related-key (or (:related-key options)
-                        (str (u/to-snake-case (name owner-entity)) "_id"))
+                        (str (yu/to-snake-case (name owner-entity)) "_id"))
         related-table (dm-setting related :table)]
     (fn [sqlmap]
       (sqlh/left-join sqlmap
