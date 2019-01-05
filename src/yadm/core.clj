@@ -23,7 +23,8 @@
       (keyword)))
 
 (defonce ^:private default-settings
-  {:validations {}
+  {:primary-key :id
+   :validations {}
    :associations []
    :before-validate []
    :before-create []
@@ -178,12 +179,16 @@
 
 (defn- build-has-many-stmt
   [owner related options]
-  (let [owner-key (or (:owner-key options) :id)
+  (let [owner-key (or (:owner-key options) (dm-setting owner :primary-key))
         owner-entity (dm-setting owner :entity-name)
         owner-table (dm-setting owner :table)
         related-key (or (:related-key options)
                         (str (yu/to-snake-case (name owner-entity)) "_id"))
         related-table (dm-setting related :table)]
+    (when (coll? owner-key)
+      (throw (Exception. (str "No support for compoud primary key: "
+                              owner-entity
+                              owner-key))))
     (fn [sqlmap]
       (sqlh/left-join sqlmap
                       [related related-table]
