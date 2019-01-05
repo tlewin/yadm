@@ -1,6 +1,7 @@
 (ns yadm.core
   (:require [honeysql.format :as sqlf]
             [honeysql.helpers :as sqlh]
+            [yadm.db :as ydb]
             [yadm.validation :as yv]
             [yadm.utils :as yu]))
 
@@ -54,6 +55,15 @@
   [dm setting]
   (get-in dm [:settings setting]))
 
+(defrecord SimpleDbInterface [db-conn options]
+  ydb/IDbInterface
+  (find-where [this dm query])
+  (create! [this dm data])
+  (update! [this dm entity-id data])
+  (delete! [this dm entity-id])
+  (update-where! [this dm data where-clause])
+  (delete-where! [this dm where-clause]))
+
 (deftype UpdatedValue [new-value])
 
 (defn- updated-value?
@@ -87,7 +97,8 @@
    fns))
 
 (defn find-where
-  [db-conn query])
+  [dbi dm query]
+  (find-where dbi dm query))
 
 (defn- validation-function-pipeline
   [dm & v-options]
@@ -109,42 +120,44 @@
     [:ok   r    nil]))
 
 (defn create!
-  [db-conn dm data]
+  [dbi dm data]
   (-> data
       (execute-function-pipeline
        (flatten [(validation-function-pipeline dm)
                  (dm-setting dm :before-create)
                  (fn [value]
-                   #_(db-conn/create))
+                   (update-value (create! dbi dm value)))
                  (dm-setting dm :after-create)]))
       (format-pipeline-result)))
 
 (defn update!
-  [db-conn dm entity-id data]
+  [dbi dm entity-id data]
   (-> data
       (execute-function-pipeline
        (flatten [(validation-function-pipeline dm :defined-fields? true)
                  (dm-setting dm :before-update)
                  (fn [value]
-                   #_(db-conn/update))
+                   (update-value (update! dbi dm entity-id value)))
                  (dm-setting dm :after-update)]))
       (format-pipeline-result)))
 
 (defn delete!
-  [db-conn dm entity-id]
+  [dbi dm entity-id]
   (-> entity-id
       (execute-function-pipeline
        (flatten [(dm-setting dm :before-delete)
                  (fn [value]
-                   #_(db-conn/delete))
+                   (delete! dbi dm entity-id))
                  (dm-setting dm :after-delete)]))
       (format-pipeline-result)))
 
 (defn update-where!
-  [db-conn dm where-clause])
+  [dbi dm data where-clause]
+  (dbi update-where! dm data where-clause))
 
 (defn delete-where!
-  [db-conn dm where-clause])
+  [dbi dm where-clause]
+  (dbi delete-where! dm where-clause))
 
 (extend-protocol sqlf/ToSql
   DataMapper
