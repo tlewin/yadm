@@ -97,7 +97,6 @@
       (let [v (apply yv/validate (flatten [(dm-setting dm :validations)
                                            value
                                            (or v-options [])]))]
-        (println v)
         (if (empty? v) ;; No validation error
           v
           (halt-execution [:validation v]))))
