@@ -60,7 +60,7 @@
   ydb/IDbInterface
   (find-where [this dm query])
   (create! [this dm data])
-  (update! [this dm entity-id data])
+  (update! [this dm data])
   (delete! [this dm entity-id])
   (update-where! [this dm data where-clause])
   (delete-where! [this dm where-clause]))
@@ -131,14 +131,25 @@
                  (dm-setting dm :after-create)]))
       (format-pipeline-result)))
 
+(defn has-primary-key?
+  [dm data]
+  (let [pk (dm-setting dm :primary-key)]
+    (every? #(contains? data %)
+            (if (coll? pk) pk [pk]))))
+
 (defn update!
-  [dbi dm entity-id data]
+  [dbi dm data]
+  (when-not (has-primary-key? dm data)
+    (throw (Exception. (str "data must contain the primary key: "
+                            (dm-setting dm :entity-name)
+                            " - "
+                            (dm-setting dm :primary-key)))))
   (-> data
       (execute-function-pipeline
        (flatten [(validation-function-pipeline dm :defined-fields? true)
                  (dm-setting dm :before-update)
                  (fn [value]
-                   (update-value (update! dbi dm entity-id value)))
+                   (update-value (update! dbi dm value)))
                  (dm-setting dm :after-update)]))
       (format-pipeline-result)))
 
