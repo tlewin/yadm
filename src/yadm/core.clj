@@ -94,7 +94,7 @@
 
 (defn find-where
   [dbi dm query]
-  (find-where dbi dm query))
+  (.find-where dbi dm query))
 
 (defn- validation-function-pipeline
   [dm & v-options]
@@ -122,7 +122,7 @@
        (flatten [(validation-function-pipeline dm)
                  (dm-setting dm :before-create)
                  (fn [value]
-                   (update-value (create! dbi dm value)))
+                   (update-value (.create! dbi dm value)))
                  (dm-setting dm :after-create)]))
       (format-pipeline-result)))
 
@@ -146,7 +146,7 @@
        (flatten [(validation-function-pipeline dm :defined-fields? true)
                  (dm-setting dm :before-update)
                  (fn [value]
-                   (update-value (update! dbi dm value)))
+                   (update-value (.update! dbi dm value)))
                  (dm-setting dm :after-update)]))
       (format-pipeline-result)))
 
@@ -164,14 +164,14 @@
       (execute-function-pipeline
        (flatten [(dm-setting dm :before-delete)
                  (fn [value]
-                   (delete! dbi dm entity-id))
+                   (.delete! dbi dm entity-id))
                  (dm-setting dm :after-delete)]))
       (format-pipeline-result)))
 
 (defn update-where!
   [dbi dm data where-clause]
-  (dbi update-where! dm data where-clause))
+  (.update-where! dbi dm data where-clause))
 
 (defn delete-where!
   [dbi dm where-clause]
-  (dbi delete-where! dm where-clause))
+  (.delete-where! dbi dm where-clause))
