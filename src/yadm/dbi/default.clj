@@ -3,7 +3,7 @@
             [honeysql.format :as sqlf]
             [honeysql.helpers :as sqlh]
             [yadm.core :refer :all]
-            [yadm.dbi :refer [IDbInterface]]
+            [yadm.dbi :refer [DbInterface]]
             [yadm.utils :as yu]))
 
 (defn- map->predicate
@@ -96,7 +96,7 @@
       (escape-column-names table-name columns))))
 
 (defrecord DefaultDBI [db-spec options]
-  IDbInterface
+  DbInterface
   (find-where
     [this dm query]
     (jdbc/query (:db-spec this)

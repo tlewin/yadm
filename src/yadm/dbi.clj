@@ -1,6 +1,6 @@
 (ns yadm.dbi)
 
-(defprotocol IDbInterface
+(defprotocol DbInterface
   (find-where [this dm query])
   (create! [this dm data])
   (update! [this dm data])
