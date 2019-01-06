@@ -22,3 +22,10 @@
 (defn to-snake-case
   [^String term]
   (string/replace (to-kebab-case term) #"-" "_"))
+
+(defn collify
+  [v]
+  (cond
+    (nil? v) []
+    (coll? v) v
+    :else [v]))

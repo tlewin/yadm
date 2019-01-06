@@ -32,12 +32,19 @@
    :after-update []
    :after-delete []})
 
+(defn- reshape-settings
+  [settings]
+  (assoc settings
+         :primary-key
+         (yu/collify (:primary-key settings))))
+
 (defn build-dm-settings
   [dm-name settings]
   (-> default-settings
       (assoc :table (table-name dm-name))
       (merge settings)
-      (assoc :entity-name (entity-name dm-name))))
+      (assoc :entity-name (entity-name dm-name))
+      (reshape-settings)))
 
 (defmacro defdatamapper
   [dm-name & settings]
@@ -122,8 +129,7 @@
 (defn has-primary-key?
   [dm data]
   (let [pk (dm-setting dm :primary-key)]
-    (every? #(contains? data %)
-            (if (coll? pk) pk [pk]))))
+    (every? #(contains? data %) pk)))
 
 (defn update!
   [dbi dm data]

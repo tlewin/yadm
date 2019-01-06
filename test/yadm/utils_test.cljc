@@ -26,3 +26,9 @@
   (is (= "some_kebab_case_string" (u/to-snake-case "some-kebab-case-string")))
   (is (= "a" (u/to-snake-case "A")))
   (is (= "" (u/to-snake-case ""))))
+
+(deftest test-collify
+  (is (coll? (u/collify 1)))
+  (is (= [] (u/collify nil)))
+  (is (= '(1 2 3) (u/collify '(1 2 3))))
+  (is (= [:a :b] (u/collify [:a :b]))))

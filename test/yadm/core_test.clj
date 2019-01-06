@@ -21,7 +21,7 @@
   (testing "Entity name"
     (is (= :compoud-name (dm-setting CompoudName :entity-name))))
   (testing "Primary key"
-    (is (= :id (dm-setting CompoudName :primary-key)))
+    (is (= [:id] (dm-setting CompoudName :primary-key)))
     (is (= [:type :id] (dm-setting CompoudPK :primary-key)))))
 
 (deftest test-datamapper?
