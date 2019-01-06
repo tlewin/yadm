@@ -133,6 +133,9 @@
 
 (defn update!
   [dbi dm data]
+  (when (empty? (dm-setting dm :primary-key))
+    (throw (Exception. (str "Unable to update an entity without PK: "
+                            (dm-setting dm :entity-name)))))
   (when-not (has-primary-key? dm data)
     (throw (Exception. (str "data must contain the primary key: "
                             (dm-setting dm :entity-name)
