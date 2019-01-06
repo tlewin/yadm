@@ -4,7 +4,7 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.9.0"]
-                 [honeysql "0.9.4"]]
+                 [honeysql "0.9.4" :scope "provided"]]
 
   :profiles {:dev {:dependencies [[nrepl "0.4.5"]]
                    :plugins [[cider/cider-nrepl "0.18.0"]]
