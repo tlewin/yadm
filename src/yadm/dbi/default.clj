@@ -1,9 +1,24 @@
 (ns yadm.dbi.default
-  (:require [honeysql.format :as sqlf]
+  (:require [clojure.java.jdbc :as jdbc]
+            [honeysql.format :as sqlf]
             [honeysql.helpers :as sqlh]
             [yadm.core :refer :all]
             [yadm.dbi :refer [IDbInterface]]
             [yadm.utils :as yu]))
+
+(defn- map->predicate
+  [m]
+  (if (empty? m)
+    []
+    (let [p (map (fn [[k v]] [:= k v]) m)
+          where-clause (->> p
+                         (apply sqlh/where)
+                         (sqlf/format))
+          [clause & args] where-clause]
+      ;; NOTE: A hackish way to get rid off "WHERE " in the beginning of the
+      ;; expression
+      ;; TODO: Fix it
+      (concat [(subs clause 6)] args))))
 
 (defn- escape-column-name
   [table-name column-name]
@@ -25,7 +40,7 @@
         related-key (or (:related-key options)
                         (str (yu/to-snake-case (name owner-entity)) "_id"))
         related-table (dm-setting related :table)]
-    (when (coll? owner-key)
+    (when (or (not= (count owner-key) 1))
       (throw (Exception. (str "No support for compoud primary key: "
                               owner-entity
                               owner-key))))
@@ -33,7 +48,7 @@
       (sqlh/left-join sqlmap
                       [related related-table]
                       [:=
-                       (escape-column-name owner-table owner-key)
+                       (escape-column-name owner-table (first owner-key))
                        (escape-column-name related-table related-key)]))))
 
 (defn- build-association-stmt
@@ -63,7 +78,7 @@
         options (apply hash-map options)
         table-name (dm-setting related :table)
         columns (or (:columns options) [:*])
-        owner (first (:from sqlmap))
+        [[owner]] (:from sqlmap)
         where (:where options)]
     (assert (datamapper? related))
     (as-> sqlmap m
@@ -77,29 +92,80 @@
         table-name (dm-setting owner :table)
         columns (or (:columns options) [:*])]
     (apply sqlh/select
-      (sqlh/from owner table-name)
+      (sqlh/from [owner table-name])
       (escape-column-names table-name columns))))
 
-(defrecord DefaultDBI [db-conn options]
+(defrecord DefaultDBI [db-spec options]
   IDbInterface
   (find-where
-    [this dm query])
+    [this dm query]
+    (jdbc/query (:db-spec this)
+                (-> query
+                    (sqlf/format))))
 
   (create!
-    [this dm data])
+    [this dm data]
+    (let [[r] (jdbc/insert! (:db-spec this)
+                            (dm-setting dm :table)
+                            data)
+          ;; TODO: Not all drivers returns the generated key.
+          ;; (see http://clojure-doc.org/articles/ecosystem/java_jdbc/using_sql.html).
+          ;; Should be replaced by another technique?
+          rid (:generated-key r)
+          ;; TODO: Check the return value for a compound pk
+          [pk] (dm-setting dm :primary-key)]
+      ;; NOTE: It seems for postgres it returns the entire row
+      (if (map? r)
+        (merge data r)
+        (if (and rid pk)
+          (assoc data pk rid)
+          data))))
 
   (update!
-    [this dm data])
+    [this dm data]
+    (let [pk (dm-setting dm :primary-key)
+          pk-data (select-keys data pk)
+          nonpk-data (apply dissoc data pk)]
+      (when (empty? pk)
+        (throw (Exception. (str "Unable to update an entity without PK: "
+                                (dm-setting dm :entity-name)))))
+      (jdbc/update! (:db-spec this)
+                    (dm-setting dm :table)
+                    nonpk-data
+                    (map->predicate pk-data))
+      data))
 
   (delete!
-    [this dm entity-id])
+    [this dm entity-id]
+    (let [pk (dm-setting dm :primary-key)]
+      (when (empty? pk)
+        (throw (Exception. (str "Unable to delete an entity without PK: "
+                                (dm-setting dm :entity-name)))))
+      (when-not (has-primary-key? dm entity-id)
+        (throw (Exception. (str "entity-id must contain the primary key: "
+                                (dm-setting dm :entity-name)
+                                " - "
+                                (dm-setting dm :primary-key)))))
+      (jdbc/delete! (:db-spec this)
+                    (dm-setting dm :table)
+                    ;; Remove where clause
+                    (map->predicate entity-id))))
 
   (update-where!
-    [this dm data where-clause])
+    [this dm data where-clause]
+    (first
+     (jdbc/update! (:db-spec this)
+                   (dm-setting dm :table)
+                   data
+                   where-clause)))
 
   (delete-where!
-    [this dm where-clause]))
+    [this dm where-clause]
+    (first
+     (jdbc/delete! (:db-spec this)
+                   (dm-setting dm :table)
+                   where-clause))))
 
 (defn default-dbi
-  [db-conn options]
-  (DefaultDBI. db-conn options))
+  [db-spec options]
+  (DefaultDBI. db-spec options))
