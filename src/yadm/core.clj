@@ -152,6 +152,14 @@
 
 (defn delete!
   [dbi dm entity-id]
+  (when (empty? (dm-setting dm :primary-key))
+    (throw (Exception. (str "Unable to delete an entity without PK: "
+                            (dm-setting dm :entity-name)))))
+  (when-not (has-primary-key? dm entity-id)
+    (throw (Exception. (str "entity-id must contain the primary key: "
+                            (dm-setting dm :entity-name)
+                            " - "
+                            (dm-setting dm :primary-key)))))
   (-> entity-id
       (execute-function-pipeline
        (flatten [(dm-setting dm :before-delete)
