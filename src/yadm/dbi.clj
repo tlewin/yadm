@@ -1,4 +1,4 @@
-(ns yadm.db)
+(ns yadm.dbi)
 
 (defprotocol IDbInterface
   (find-where [this dm query])
