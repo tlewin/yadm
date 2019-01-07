@@ -170,9 +170,10 @@
   (delete-where!
     [this dm where-clause]
     (first
-     (jdbc/delete! (:db-spec this)
-                   (dm-setting dm :table)
-                   where-clause))))
+     (jdbc/execute! (:db-spec this)
+                    (-> (apply sqlh/where where-clause)
+                        (sqlh/delete-from dm)
+                        (sqlf/format))))))
 
 (defn default-dbi
   [db-spec options]
