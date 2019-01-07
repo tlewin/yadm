@@ -6,20 +6,6 @@
             [yadm.dbi :refer [DbInterface]]
             [yadm.utils :as yu]))
 
-(defn- map->predicate
-  [m]
-  (if (empty? m)
-    []
-    (let [p (map (fn [[k v]] [:= k v]) m)
-          where-clause (->> p
-                         (apply sqlh/where)
-                         (sqlf/format))
-          [clause & args] where-clause]
-      ;; NOTE: A hackish way to get rid off "WHERE " in the beginning of the
-      ;; expression
-      ;; TODO: Fix it
-      (concat [(subs clause 6)] args))))
-
 (defn- map->where-clause
   [m]
   (map (fn [[k v]]
