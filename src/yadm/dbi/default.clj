@@ -153,10 +153,10 @@
                                 (dm-setting dm :entity-name)
                                 " - "
                                 (dm-setting dm :primary-key)))))
-      (jdbc/delete! (:db-spec this)
-                    (dm-setting dm :table)
-                    ;; Remove where clause
-                    (map->predicate entity-id))))
+      (jdbc/execute! (:db-spec this)
+                     (-> (apply sqlh/where (map->where-clause entity-id))
+                         (sqlh/delete-from dm)
+                         (sqlf/format)))))
 
   (update-where!
     [this dm data where-clause]
