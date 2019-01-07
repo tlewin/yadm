@@ -161,10 +161,11 @@
   (update-where!
     [this dm data where-clause]
     (first
-     (jdbc/update! (:db-spec this)
-                   (dm-setting dm :table)
-                   data
-                   where-clause)))
+     (jdbc/execute! (:db-spec this)
+                    (-> (apply sqlh/where where-clause)
+                        (sqlh/update dm)
+                        (sqlh/sset data)
+                        (sqlf/format)))))
 
   (delete-where!
     [this dm where-clause]
