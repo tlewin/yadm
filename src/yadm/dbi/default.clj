@@ -20,6 +20,12 @@
       ;; TODO: Fix it
       (concat [(subs clause 6)] args))))
 
+(defn- map->where-clause
+  [m]
+  (map (fn [[k v]]
+         [:= k v])
+       m))
+
 (defn- escape-column-name
   [table-name column-name]
   (->> column-name
@@ -129,10 +135,11 @@
       (when (empty? pk)
         (throw (Exception. (str "Unable to update an entity without PK: "
                                 (dm-setting dm :entity-name)))))
-      (jdbc/update! (:db-spec this)
-                    (dm-setting dm :table)
-                    nonpk-data
-                    (map->predicate pk-data))
+      (jdbc/execute! (:db-spec this)
+                     (-> (apply sqlh/where (map->where-clause pk-data))
+                         (sqlh/update dm)
+                         (sqlh/sset nonpk-data)
+                         (sqlf/format)))
       data))
 
   (delete!
