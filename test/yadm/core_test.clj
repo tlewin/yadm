@@ -1,6 +1,7 @@
 (ns yadm.core-test
   (:require [clojure.test :refer :all]
-            [yadm.core :refer :all]))
+            [yadm.core :refer :all]
+            [yadm.dbi :as ydbi]))
 
 (def test-validations
   {:field1 [[:required]]
@@ -48,3 +49,65 @@
   (is (not (has-primary-key? T {:id 1})))
   (is (not (has-primary-key? T {:type :a})))
   (is (not (has-primary-key? T {:email "test@test.com"}))))
+
+(defrecord TestDBInterface [return-values]
+  ydbi/DbInterface
+  (find-where
+    [this dm query options]
+    (:find-where (:return-values this)))
+
+  (create!
+    [this dm data options]
+    (:create! (:return-values this)))
+
+  (update!
+    [this dm data options]
+    (:update! (:return-value this)))
+
+  (delete!
+    [this dm entity-id options]
+    (:delete! (:return-value this)))
+
+  (update-where!
+    [this dm data where-clause options]
+    (:update-where! (:return-value this)))
+
+  (delete-where!
+    [this dm where-clause options]
+    (:delete-where! (:return-value this))))
+
+(defdatamapper Test
+  :before-create [(fn [dm v] (update-value (assoc v :before-create true)))]
+  :after-create  [(fn [dm v] (update-value (assoc v :after-create true)))]
+  :before-update [(fn [dm v] (update-value (assoc v :before-update true)))]
+  :after-update  [(fn [dm v] (update-value (assoc v :after-update true)))]
+  :before-delete [(fn [dm v] (update-value (assoc v :before-delete true)))]
+  :after-delete  [(fn [dm v] (update-value (assoc v :after-delete true)))]
+  :validations
+  {:field1 [[:required]]
+   :field2 [[:required]
+            [:range :min 0 :max 1]]})
+
+(deftest test-find-where
+  (testing "Returns the dbi/find-where return value"
+    (is (= [:a :b :c] (find-where (TestDBInterface. {:find-where [:a :b :c]})
+                                  Test
+                                  {})))))
+
+(deftest test-create!
+  (testing "Applies the validations"
+    (let [[status _ [error error-msg]] (create! (TestDBInterface. {})
+                                                Test
+                                                {})]
+      (is (= status :fail))
+      (is (= error  :validation)))))
+
+(deftest test-update!
+  (testing "Applies the validations"
+    (let [[status _ [error error-msg]] (update! (TestDBInterface. {})
+                                                Test
+                                                {:id 1
+                                                 :field1 42
+                                                 :field2 5})]
+      (is (= status :fail))
+      (is (= error  :validation)))))

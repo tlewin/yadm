@@ -101,7 +101,7 @@
   [dm & v-options]
   (flatten
    [(dm-setting dm :before-validate)
-    (fn [value]
+    (fn [dm value]
       (let [v (apply yv/validate (flatten [(dm-setting dm :validations)
                                            value
                                            (or v-options [])]))]
@@ -124,7 +124,7 @@
       dm
       (flatten [(validation-function-pipeline dm)
                 (dm-setting dm :before-create)
-                (fn [value]
+                (fn [dm value]
                   (update-value (.create! dbi dm value options)))
                 (dm-setting dm :after-create)]))
      (format-pipeline-result))))
@@ -150,7 +150,7 @@
       dm
       (flatten [(validation-function-pipeline dm :defined-fields? true)
                 (dm-setting dm :before-update)
-                (fn [value]
+                (fn [dm value]
                   (update-value (.update! dbi dm value)))
                 (dm-setting dm :after-update)]))
      (format-pipeline-result))))
@@ -170,7 +170,7 @@
      (execute-function-pipeline
       dm
       (flatten [(dm-setting dm :before-delete)
-                (fn [value]
+                (fn [dm value]
                   (.delete! dbi dm entity-id))
                 (dm-setting dm :after-delete)]))
      (format-pipeline-result))))
