@@ -8,9 +8,7 @@
 
 (defn- map->where-clause
   [m]
-  (map (fn [[k v]]
-         [:= k v])
-       m))
+  (map (fn [[k v]] [:= k v]) m))
 
 (defn- escape-column-name
   [table-name column-name]

@@ -20,17 +20,17 @@
       (keyword)))
 
 (defonce ^:private default-settings
-  {:primary-key :id
-   :validations {}
-   :associations []
+  {:primary-key     :id
+   :validations     {}
+   :associations    []
    :before-validate []
-   :before-create []
-   :before-update []
-   :before-delete []
-   :after-validate []
-   :after-create []
-   :after-update []
-   :after-delete []})
+   :before-create   []
+   :before-update   []
+   :before-delete   []
+   :after-validate  []
+   :after-create    []
+   :after-update    []
+   :after-delete    []})
 
 (defn- reshape-settings
   [settings]
