@@ -90,7 +90,7 @@
 (defrecord DefaultDBI [db-spec options]
   DbInterface
   (find-where
-    [this dm query]
+    [this dm query options]
     (jdbc/query (:db-spec this)
                 (-> query
                     (sqlf/format))))
