@@ -95,14 +95,14 @@
 
 (defn- build-association-stmt
   [sqlmap owner related]
-  (let [associations (dm-setting owner :associations)
-        owner-entity (dm-setting owner :entity-name)
-        owner-table (dm-setting owner :table)
-        related-entity (dm-setting related :entity-name)
-        related-table (dm-setting related :table)
+  (let [associations               (dm-setting owner :associations)
+        owner-entity               (dm-setting owner :entity-name)
+        owner-table                (dm-setting owner :table)
+        related-entity             (dm-setting related :entity-name)
+        related-table              (dm-setting related :table)
         [[assoc-type _ & options]] (filter (fn [[x r & _]] (= r related-entity))
                                            associations)
-        options (apply hash-map options)]
+        options                    (apply hash-map options)]
     (if (nil? assoc-type)
       ;; NOTE: No entity found. Should throw an exception?
       (throw (Exception. (str owner-entity " has no association for " related-entity)))
@@ -118,10 +118,10 @@
 
 (sqlh/defhelper include [sqlmap args]
   (let [[related & options] args
-        options (apply hash-map options)
-        table-name (dm-setting related :table)
-        columns (or (:columns options) [:*])
-        [[owner]] (:from sqlmap)]
+        options             (apply hash-map options)
+        table-name          (dm-setting related :table)
+        columns             (or (:columns options) [:*])
+        [[owner]]           (:from sqlmap)]
     (assert (datamapper? related))
     (as-> sqlmap m
       (build-association-stmt m owner related)
@@ -129,12 +129,12 @@
 
 (sqlh/defhelper query [sqlmap args]
   (let [[owner & options] args
-        options (apply hash-map options)
-        table-name (dm-setting owner :table)
-        columns (or (:columns options) [:*])]
+        options           (apply hash-map options)
+        table-name        (dm-setting owner :table)
+        columns           (or (:columns options) [:*])]
     (apply sqlh/select
-      (sqlh/from [owner table-name])
-      (escape-column-names table-name columns))))
+           (sqlh/from [owner table-name])
+           (escape-column-names table-name columns))))
 
 (defrecord DefaultDBI [db-spec options]
   DbInterface
