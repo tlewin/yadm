@@ -25,7 +25,7 @@
     (map (partial escape-column-name table-name) column-names)))
 
 (defn- build-has-many-stmt
-  [owner related options]
+  [sqlmap owner related options]
   (let [owner-key (or (:owner-key options) (dm-setting owner :primary-key))
         owner-entity (dm-setting owner :entity-name)
         owner-table (dm-setting owner :table)
@@ -36,15 +36,14 @@
       (throw (Exception. (str "No support for compoud primary key: "
                               owner-entity
                               owner-key))))
-    (fn [sqlmap]
-      (sqlh/left-join sqlmap
-                      [related related-table]
-                      [:=
-                       (escape-column-name owner-table (first (yu/collify owner-key)))
-                       (escape-column-name related-table related-key)]))))
+    (sqlh/left-join sqlmap
+                    [related related-table]
+                    [:=
+                     (escape-column-name owner-table (first (yu/collify owner-key)))
+                     (escape-column-name related-table related-key)])))
 
 (defn- build-belongs-to-stmt
-  [owner related options]
+  [sqlmap owner related options]
   (let [related-entity (dm-setting related :entity-name)
         owner-key (or (:owner-key options)
                       (str (yu/to-snake-case (name related-entity)) "_id"))
@@ -55,15 +54,14 @@
       (throw (Exception. (str "No support for compoud primary key: "
                               related-entity
                               related-key))))
-    (fn [sqlmap]
-      (sqlh/left-join sqlmap
-                      [related related-table]
-                      [:=
-                       (escape-column-name owner-table owner-key)
-                       (escape-column-name related-table (first (yu/collify related-key)))]))))
+    (sqlh/left-join sqlmap
+                    [related related-table]
+                    [:=
+                     (escape-column-name owner-table owner-key)
+                     (escape-column-name related-table (first (yu/collify related-key)))])))
 
 (defn- build-association-stmt
-  [owner related]
+  [sqlmap owner related]
   (let [associations (dm-setting owner :associations)
         owner-entity (dm-setting owner :entity-name)
         owner-table (dm-setting owner :table)
@@ -76,8 +74,8 @@
       ;; NOTE: No entity found. Should throw an exception?
       (throw (Exception. (str owner-entity " has no association for " related-entity)))
       (case assoc-type
-        :has-many (build-has-many-stmt owner related options)
-        :belongs-to (build-belongs-to-stmt owner related options)
+        :has-many (build-has-many-stmt sqlmap owner related options)
+        :belongs-to (build-belongs-to-stmt sqlmap owner related options)
         (throw (Exception. (str "Unknown association type: " assoc-type)))))))
 
 (extend-protocol sqlf/ToSql
@@ -93,7 +91,7 @@
         [[owner]] (:from sqlmap)]
     (assert (datamapper? related))
     (as-> sqlmap m
-      ((build-association-stmt owner related) m)
+      (build-association-stmt m owner related)
       (apply sqlh/merge-select m (escape-column-names table-name columns)))))
 
 (sqlh/defhelper query [sqlmap args]
