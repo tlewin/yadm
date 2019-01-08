@@ -57,11 +57,11 @@
 
 (defn- build-has-many-stmt
   [sqlmap owner related options]
-  (let [owner-key (or (:owner-key options) (dm-setting owner :primary-key))
-        owner-entity (dm-setting owner :entity-name)
-        owner-table (dm-setting owner :table)
-        related-key (or (:related-key options)
-                        (str (yu/to-snake-case (name owner-entity)) "_id"))
+  (let [owner-key     (or (:owner-key options) (dm-setting owner :primary-key))
+        owner-entity  (dm-setting owner :entity-name)
+        owner-table   (dm-setting owner :table)
+        related-key   (or (:related-key options)
+                          (str (yu/to-snake-case (name owner-entity)) "_id"))
         related-table (dm-setting related :table)]
     (when (or (not= (count owner-key) 1))
       (throw (Exception. (str "No support for compoud primary key: "
@@ -69,29 +69,29 @@
                               owner-key))))
     (if (contains? options :through)
       (build-has-many-through-stmt sqlmap owner related options)
-      (sqlh/left-join sqlmap
-                      [related related-table]
-                      [:=
-                       (escape-column-name owner-table (first (yu/collify owner-key)))
-                       (escape-column-name related-table related-key)]))))
+      (sqlh/merge-left-join sqlmap
+                            [related related-table]
+                            [:=
+                             (escape-column-name owner-table (first (yu/collify owner-key)))
+                             (escape-column-name related-table related-key)]))))
 
 (defn- build-belongs-to-stmt
   [sqlmap owner related options]
   (let [related-entity (dm-setting related :entity-name)
-        owner-key (or (:owner-key options)
-                      (str (yu/to-snake-case (name related-entity)) "_id"))
-        owner-table (dm-setting owner :table)
-        related-key (or (:related-key options) (dm-setting related :primary-key))
-        related-table (dm-setting related :table)]
+        owner-key      (or (:owner-key options)
+                           (str (yu/to-snake-case (name related-entity)) "_id"))
+        owner-table    (dm-setting owner :table)
+        related-key    (or (:related-key options) (dm-setting related :primary-key))
+        related-table  (dm-setting related :table)]
     (when (or (not= (count related-key) 1))
       (throw (Exception. (str "No support for compoud primary key: "
                               related-entity
                               related-key))))
-    (sqlh/left-join sqlmap
-                    [related related-table]
-                    [:=
-                     (escape-column-name owner-table owner-key)
-                     (escape-column-name related-table (first (yu/collify related-key)))])))
+    (sqlh/merge-left-join sqlmap
+                          [related related-table]
+                          [:=
+                           (escape-column-name owner-table owner-key)
+                           (escape-column-name related-table (first (yu/collify related-key)))])))
 
 (defn- build-association-stmt
   [sqlmap owner related]
