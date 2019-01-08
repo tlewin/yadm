@@ -93,8 +93,9 @@
    fns))
 
 (defn find-where
-  [dbi dm query]
-  (.find-where dbi dm query))
+  ([dbi dm query] (find-where dbi dm query {}))
+  ([dbi dm query options]
+   (.find-where dbi dm query options)))
 
 (defn- validation-function-pipeline
   [dm & v-options]
@@ -116,15 +117,16 @@
     [:ok   r    nil]))
 
 (defn create!
-  [dbi dm data]
-  (-> data
-      (execute-function-pipeline
-       (flatten [(validation-function-pipeline dm)
-                 (dm-setting dm :before-create)
-                 (fn [value]
-                   (update-value (.create! dbi dm value)))
-                 (dm-setting dm :after-create)]))
-      (format-pipeline-result)))
+  ([dbi dm data] (create! dbi dm data {}))
+  ([dbi dm data options]
+   (-> data
+     (execute-function-pipeline
+      (flatten [(validation-function-pipeline dm)
+                (dm-setting dm :before-create)
+                (fn [value]
+                  (update-value (.create! dbi dm value options)))
+                (dm-setting dm :after-create)]))
+     (format-pipeline-result))))
 
 (defn has-primary-key?
   [dm data]
@@ -132,46 +134,50 @@
     (every? #(contains? data %) pk)))
 
 (defn update!
-  [dbi dm data]
-  (when (empty? (dm-setting dm :primary-key))
-    (throw (Exception. (str "Unable to update an entity without PK: "
-                            (dm-setting dm :entity-name)))))
-  (when-not (has-primary-key? dm data)
-    (throw (Exception. (str "data must contain the primary key: "
-                            (dm-setting dm :entity-name)
-                            " - "
-                            (dm-setting dm :primary-key)))))
-  (-> data
-      (execute-function-pipeline
-       (flatten [(validation-function-pipeline dm :defined-fields? true)
-                 (dm-setting dm :before-update)
-                 (fn [value]
-                   (update-value (.update! dbi dm value)))
-                 (dm-setting dm :after-update)]))
-      (format-pipeline-result)))
+  ([dbi dm data] (update! dbi dm data {}))
+  ([dbi dm data options]
+   (when (empty? (dm-setting dm :primary-key))
+     (throw (Exception. (str "Unable to update an entity without PK: "
+                             (dm-setting dm :entity-name)))))
+   (when-not (has-primary-key? dm data)
+     (throw (Exception. (str "data must contain the primary key: "
+                             (dm-setting dm :entity-name)
+                             " - "
+                             (dm-setting dm :primary-key)))))
+   (-> data
+     (execute-function-pipeline
+      (flatten [(validation-function-pipeline dm :defined-fields? true)
+                (dm-setting dm :before-update)
+                (fn [value]
+                  (update-value (.update! dbi dm value)))
+                (dm-setting dm :after-update)]))
+     (format-pipeline-result))))
 
 (defn delete!
-  [dbi dm entity-id]
-  (when (empty? (dm-setting dm :primary-key))
-    (throw (Exception. (str "Unable to delete an entity without PK: "
-                            (dm-setting dm :entity-name)))))
-  (when-not (has-primary-key? dm entity-id)
-    (throw (Exception. (str "entity-id must contain the primary key: "
-                            (dm-setting dm :entity-name)
-                            " - "
-                            (dm-setting dm :primary-key)))))
-  (-> entity-id
-      (execute-function-pipeline
-       (flatten [(dm-setting dm :before-delete)
-                 (fn [value]
-                   (.delete! dbi dm entity-id))
-                 (dm-setting dm :after-delete)]))
-      (format-pipeline-result)))
+  ([dbi dm entity-id] (delete! dbi dm entity-id {}))
+  ([dbi dm entity-id options]
+   (when (empty? (dm-setting dm :primary-key))
+     (throw (Exception. (str "Unable to delete an entity without PK: "
+                             (dm-setting dm :entity-name)))))
+   (when-not (has-primary-key? dm entity-id)
+     (throw (Exception. (str "entity-id must contain the primary key: "
+                             (dm-setting dm :entity-name)
+                             " - "
+                             (dm-setting dm :primary-key)))))
+   (-> entity-id
+     (execute-function-pipeline
+      (flatten [(dm-setting dm :before-delete)
+                (fn [value]
+                  (.delete! dbi dm entity-id))
+                (dm-setting dm :after-delete)]))
+     (format-pipeline-result))))
 
 (defn update-where!
-  [dbi dm data where-clause]
-  (.update-where! dbi dm data where-clause))
+  ([dbi dm data where-clause] (update-where! dbi dm data where-clause {}))
+  ([dbi dm data where-clause options]
+   (.update-where! dbi dm data where-clause options)))
 
 (defn delete-where!
-  [dbi dm where-clause]
-  (.delete-where! dbi dm where-clause))
+  ([dbi dm where-clause] (delete-where! dbi dm where-clause {}))
+  ([dbi dm where-clause options]
+   (.delete-where! dbi dm where-clause options)))

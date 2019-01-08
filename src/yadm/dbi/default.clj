@@ -96,7 +96,7 @@
                     (sqlf/format))))
 
   (create!
-    [this dm data]
+    [this dm data options]
     (let [[r] (jdbc/insert! (:db-spec this)
                             (dm-setting dm :table)
                             data)
@@ -114,7 +114,7 @@
           data))))
 
   (update!
-    [this dm data]
+    [this dm data options]
     (let [pk (dm-setting dm :primary-key)
           pk-data (select-keys data pk)
           nonpk-data (apply dissoc data pk)]
@@ -129,7 +129,7 @@
       data))
 
   (delete!
-    [this dm entity-id]
+    [this dm entity-id options]
     (let [pk (dm-setting dm :primary-key)]
       (when (empty? pk)
         (throw (Exception. (str "Unable to delete an entity without PK: "
@@ -145,7 +145,7 @@
                          (sqlf/format)))))
 
   (update-where!
-    [this dm data where-clause]
+    [this dm data where-clause options]
     (first
      (jdbc/execute! (:db-spec this)
                     (-> (apply sqlh/where where-clause)
@@ -154,7 +154,7 @@
                         (sqlf/format)))))
 
   (delete-where!
-    [this dm where-clause]
+    [this dm where-clause options]
     (first
      (jdbc/execute! (:db-spec this)
                     (-> (apply sqlh/where where-clause)
