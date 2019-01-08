@@ -22,6 +22,39 @@
   (let [table-name (name table-name)]
     (map (partial escape-column-name table-name) column-names)))
 
+(defn- build-has-many-through-stmt
+  [sqlmap owner related options]
+  (let [owner-key      (or (:owner-key options)
+                           (dm-setting owner :primary-key))
+        related-key    (or (:related-key options)
+                           (dm-setting related :primary-key))
+        owner-entity   (dm-setting owner :entity-name)
+        related-entity (dm-setting related :entity-name)
+        owner-table    (dm-setting owner :table)
+        related-table  (dm-setting related :table)
+
+        through-table  (keyword (:through options))
+        ;; NOTE: Should add options for configuring these keys?
+        through-okey   (str (yu/to-snake-case (name owner-entity)) "_id")
+        through-rkey   (str (yu/to-snake-case (name related-entity)) "_id")]
+    (when (or (not= (count owner-key) 1))
+      (throw (Exception. (str "No support for compoud primary key: "
+                              owner-entity
+                              owner-key))))
+    (when (or (not= (count related-key) 1))
+      (throw (Exception. (str "No support for compoud primary key: "
+                              related-entity
+                              related-key))))
+    (-> sqlmap
+        (sqlh/merge-left-join [through-table through-table]
+                              [:=
+                               (escape-column-name owner-table (first (yu/collify owner-key)))
+                               (escape-column-name through-table through-okey)])
+        (sqlh/merge-join [related related-table]
+                         [:=
+                          (escape-column-name through-table through-rkey)
+                          (escape-column-name related-table (first (yu/collify related-key)))]))))
+
 (defn- build-has-many-stmt
   [sqlmap owner related options]
   (let [owner-key (or (:owner-key options) (dm-setting owner :primary-key))
@@ -34,11 +67,13 @@
       (throw (Exception. (str "No support for compoud primary key: "
                               owner-entity
                               owner-key))))
-    (sqlh/left-join sqlmap
-                    [related related-table]
-                    [:=
-                     (escape-column-name owner-table (first (yu/collify owner-key)))
-                     (escape-column-name related-table related-key)])))
+    (if (contains? options :through)
+      (build-has-many-through-stmt sqlmap owner related options)
+      (sqlh/left-join sqlmap
+                      [related related-table]
+                      [:=
+                       (escape-column-name owner-table (first (yu/collify owner-key)))
+                       (escape-column-name related-table related-key)]))))
 
 (defn- build-belongs-to-stmt
   [sqlmap owner related options]
