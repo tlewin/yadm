@@ -81,10 +81,10 @@
   (HaltedValue. error))
 
 (defn- execute-function-pipeline
-  [initial-value fns]
+  [initial-value dm fns]
   (reduce
    (fn [value f]
-     (let [r (f value)]
+     (let [r (f dm value)]
        (cond
          (updated-value? r) (.new-value r)
          (halted-execution? r) (reduced r)
@@ -121,6 +121,7 @@
   ([dbi dm data options]
    (-> data
      (execute-function-pipeline
+      dm
       (flatten [(validation-function-pipeline dm)
                 (dm-setting dm :before-create)
                 (fn [value]
@@ -146,6 +147,7 @@
                              (dm-setting dm :primary-key)))))
    (-> data
      (execute-function-pipeline
+      dm
       (flatten [(validation-function-pipeline dm :defined-fields? true)
                 (dm-setting dm :before-update)
                 (fn [value]
@@ -166,6 +168,7 @@
                              (dm-setting dm :primary-key)))))
    (-> entity-id
      (execute-function-pipeline
+      dm
       (flatten [(dm-setting dm :before-delete)
                 (fn [value]
                   (.delete! dbi dm entity-id))
