@@ -90,13 +90,11 @@
         options (apply hash-map options)
         table-name (dm-setting related :table)
         columns (or (:columns options) [:*])
-        [[owner]] (:from sqlmap)
-        where (:where options)]
+        [[owner]] (:from sqlmap)]
     (assert (datamapper? related))
     (as-> sqlmap m
       ((build-association-stmt owner related) m)
-      (apply sqlh/merge-select m (escape-column-names table-name columns))
-      (apply sqlh/merge-where m (or where [])))))
+      (apply sqlh/merge-select m (escape-column-names table-name columns)))))
 
 (sqlh/defhelper query [sqlmap args]
   (let [[owner & options] args
