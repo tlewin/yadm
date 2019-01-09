@@ -110,4 +110,19 @@
                                                  :field1 42
                                                  :field2 5})]
       (is (= status :fail))
-      (is (= error  :validation)))))
+      (is (= error  :validation))))
+  (testing "Applies the validations only for defined fields"
+    (let [[status _ [error error-msg]] (update! (TestDBInterface. {})
+                                                Test
+                                                {:id 1
+                                                 :field2 5})]
+      (is (= status :fail))
+      (is (= error  :validation))
+      (is (= [:field2] (keys error-msg)))))
+  (testing "Raises an exception if primary field is not defined"
+    (is (thrown-with-msg? Exception
+                          #"data must contain the primary key"
+                          (update! (TestDBInterface. {})
+                                   Test
+                                   {:field1 42
+                                    :field2 5})))))
