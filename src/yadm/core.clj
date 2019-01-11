@@ -1,5 +1,6 @@
 (ns yadm.core
-  (:require [yadm.validation :as yv]
+  (:require [inflections.core :as inf]
+            [yadm.validation :as yv]
             [yadm.utils :as yu]))
 
 (defrecord DataMapper [settings])
@@ -7,15 +8,15 @@
 (defn- table-name
   [dm-name]
   (-> dm-name
-      (yu/to-snake-case)
+      (inf/underscore)
       (.toLowerCase)
-      (yu/pluralize)
+      (inf/plural)
       (keyword)))
 
 (defn- entity-name
   [dm-name]
   (-> dm-name
-      (yu/to-kebab-case)
+      (inf/hyphenate)
       (.toLowerCase)
       (keyword)))
 

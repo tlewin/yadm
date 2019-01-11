@@ -1,5 +1,6 @@
 (ns yadm.dbi.default
   (:require [clojure.java.jdbc :as jdbc]
+            [inflections.core :as inf]
             [honeysql.format :as sqlf]
             [honeysql.helpers :as sqlh]
             [yadm.core :refer :all]
@@ -35,8 +36,8 @@
 
         through-table  (keyword (:through options))
         ;; NOTE: Should add options for configuring these keys?
-        through-okey   (str (yu/to-snake-case (name owner-entity)) "_id")
-        through-rkey   (str (yu/to-snake-case (name related-entity)) "_id")]
+        through-okey   (str (inf/underscore (name owner-entity)) "_id")
+        through-rkey   (str (inf/underscore (name related-entity)) "_id")]
     (when (or (not= (count owner-key) 1))
       (throw (Exception. (str "No support for compoud primary key: "
                               owner-entity
@@ -61,7 +62,7 @@
         owner-entity  (dm-setting owner :entity-name)
         owner-table   (dm-setting owner :table)
         related-key   (or (:related-key options)
-                          (str (yu/to-snake-case (name owner-entity)) "_id"))
+                          (str (inf/underscore (name owner-entity)) "_id"))
         related-table (dm-setting related :table)]
     (when (or (not= (count owner-key) 1))
       (throw (Exception. (str "No support for compoud primary key: "
@@ -79,7 +80,7 @@
   [sqlmap owner related options]
   (let [related-entity (dm-setting related :entity-name)
         owner-key      (or (:owner-key options)
-                           (str (yu/to-snake-case (name related-entity)) "_id"))
+                           (str (inf/underscore (name related-entity)) "_id"))
         owner-table    (dm-setting owner :table)
         related-key    (or (:related-key options) (dm-setting related :primary-key))
         related-table  (dm-setting related :table)]
