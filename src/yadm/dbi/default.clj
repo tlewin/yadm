@@ -211,5 +211,5 @@
                         (sqlf/format))))))
 
 (defn default-dbi
-  [db-spec options]
+  [db-spec & options]
   (DefaultDBI. db-spec options))
