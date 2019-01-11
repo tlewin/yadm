@@ -58,15 +58,18 @@
 
   (create!
     [this dm data options]
-    (:create! (:return-values this)))
+    (merge data
+           (:create! (:return-values this))))
 
   (update!
     [this dm data options]
-    (:update! (:return-value this)))
+    (merge data
+           (:update! (:return-value this))))
 
   (delete!
     [this dm entity-id options]
-    (:delete! (:return-value this)))
+    (merge entity-id
+           (:delete! (:return-value this))))
 
   (update-where!
     [this dm data where-clause options]
@@ -100,22 +103,28 @@
                                                 Test
                                                 {})]
       (is (= status :fail))
-      (is (= error  :validation)))))
+      (is (= error  :validation))))
+  (testing "Applies the proper callbacks"
+    (let [[status v _] (create! (TestDBInterface. {})
+                                Test
+                                {:field1 0 :field2 1})]
+      (is (= status :ok))
+      (is (= v {:field1        0
+                :field2        1
+                :before-create true
+                :after-create  true})))))
 
 (deftest test-update!
   (testing "Applies the validations"
     (let [[status _ [error error-msg]] (update! (TestDBInterface. {})
                                                 Test
-                                                {:id 1
-                                                 :field1 42
-                                                 :field2 5})]
+                                                {:id 1 :field1 42 :field2 5})]
       (is (= status :fail))
       (is (= error  :validation))))
   (testing "Applies the validations only for defined fields"
     (let [[status _ [error error-msg]] (update! (TestDBInterface. {})
                                                 Test
-                                                {:id 1
-                                                 :field2 5})]
+                                                {:id 1 :field2 5})]
       (is (= status :fail))
       (is (= error  :validation))
       (is (= [:field2] (keys error-msg)))))
@@ -124,5 +133,14 @@
                           #"data must contain the primary key"
                           (update! (TestDBInterface. {})
                                    Test
-                                   {:field1 42
-                                    :field2 5})))))
+                                   {:field1 42 :field2 5}))))
+  (testing "Applies the proper callbacks"
+    (let [[status v _] (update! (TestDBInterface. {})
+                                Test
+                                {:id 1 :field1 0 :field2 1})]
+      (is (= status :ok))
+      (is (= v {:id            1
+                :field1        0
+                :field2        1
+                :before-update true
+                :after-update  true})))))

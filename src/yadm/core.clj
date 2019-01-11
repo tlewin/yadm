@@ -151,7 +151,7 @@
       (flatten [(validation-function-pipeline dm :defined-fields? true)
                 (dm-setting dm :before-update)
                 (fn [dm value]
-                  (update-value (.update! dbi dm value)))
+                  (update-value (.update! dbi dm value options)))
                 (dm-setting dm :after-update)]))
      (format-pipeline-result))))
 
