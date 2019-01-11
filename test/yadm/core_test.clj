@@ -144,3 +144,19 @@
                 :field2        1
                 :before-update true
                 :after-update  true})))))
+
+(deftest test-delete!
+  (testing "Raises an exception if primary field is not defined"
+    (is (thrown-with-msg? Exception
+                          #"entity-id must contain the primary key"
+                          (delete! (TestDBInterface. {})
+                                   Test
+                                   {:not-id 1}))))
+  (testing "Applies the proper callbacks"
+    (let [[status v _] (delete! (TestDBInterface. {})
+                                Test
+                                {:id 1})]
+      (is (= status :ok))
+      (is (= v {:id            1
+                :before-delete true
+                :after-delete  true})))))

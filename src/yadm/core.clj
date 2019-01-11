@@ -171,7 +171,7 @@
       dm
       (flatten [(dm-setting dm :before-delete)
                 (fn [dm value]
-                  (.delete! dbi dm entity-id))
+                  (.delete! dbi dm entity-id options))
                 (dm-setting dm :after-delete)]))
      (format-pipeline-result))))
 
