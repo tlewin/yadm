@@ -64,20 +64,20 @@
   (update!
     [this dm data options]
     (merge data
-           (:update! (:return-value this))))
+           (:update! (:return-values this))))
 
   (delete!
     [this dm entity-id options]
     (merge entity-id
-           (:delete! (:return-value this))))
+           (:delete! (:return-values this))))
 
   (update-where!
     [this dm data where-clause options]
-    (:update-where! (:return-value this)))
+    (:update-where! (:return-values this)))
 
   (delete-where!
     [this dm where-clause options]
-    (:delete-where! (:return-value this))))
+    (:delete-where! (:return-values this))))
 
 (defdatamapper Test
   :before-create [(fn [dm v] (update-value (assoc v :before-create true)))]
@@ -160,3 +160,10 @@
       (is (= v {:id            1
                 :before-delete true
                 :after-delete  true})))))
+
+(deftest test-update-where!
+  (testing "Returns the dbi/update-where! return value"
+    (is (= 42 (update-where! (TestDBInterface. {:update-where! 42})
+                             Test
+                             {:field1 10}
+                             [[:>= :field1 5]])))))
