@@ -18,26 +18,12 @@ The current version it's **not** production ready yet and the APIs **might chang
 
 ```clojure
 (ns example.core
-  (:require [yadm.core :as yadm]))
-
-(yadm/defdatamapper Image
-  :validations
-  {:url [[:required]]})
-
-(yadm/defdatamapper Product
-  :validations
-  {:name [[:required]]
-   :price [[:required]
-           [:range :min 0]]
-   :status [[:required]
-            [:in :set #{"new" "used"}]]}
-
-  :associations
-  [[:has-many :image]])
+  (:require [yadm.core :as yadm]
+            [yadm.dbi.default :as ydbi]))
 
 (yadm/defdatamapper User
   :validations
-  {:name [[:required]]
+  {:name  [[:required]]
    :email [[:required]
            [:format :with #"\S+@\S+\.\S+"]]}
 
@@ -46,13 +32,32 @@ The current version it's **not** production ready yet and the APIs **might chang
 
   :after-create [send-welcome-email])
 
-(yadm/find-where
-  db-conn
-  (-> (yadm/query User :columns [:name])
-      (yadm/with Product :where [[:= :status "new"]])))
+(yadm/defdatamapper Product
+  :validations
+  {:name      [[:required]]
+   :price     [[:required]
+               [:range :min 0]]
+   :condition [[:required]
+               [:in :set #{"new" "used"}]]}
 
-(yadm/create! db-conn User {:name "Test"
-                            :email "test@test.com"})
+  :associations
+  [[:belongs-to :user]])
+
+(def db-spec
+  {:classname   "org.postgresql.Driver"
+   :subprotocol "postgresql"
+   :subname     "//localhost:5432/a_db_name"
+   :user        "an-user"
+   :password    "a-password"})
+
+(yadm/find-where (ydbi/default-dbi db-spec)
+                 User
+                 (-> (yadm/query User :columns [:name])
+                     (yadm/with Product)))
+
+(yadm/create! (ydbi/default-dbi db-spec)
+              User {:name  "Test"
+                    :email "test@test.com"})
 ```
 
 ## License
