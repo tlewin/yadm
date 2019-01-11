@@ -167,3 +167,10 @@
                              Test
                              {:field1 10}
                              [[:>= :field1 5]])))))
+
+(deftest test-delete-where!
+  (testing "Returns the dbi/delete-where! return value"
+    (is (= 42 (delete-where! (TestDBInterface. {:delete-where! 42})
+                             Test
+                             {:field1 10}
+                             [[:>= :field1 5]])))))
