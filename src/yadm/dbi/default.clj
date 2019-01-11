@@ -113,8 +113,9 @@
 
 (extend-protocol sqlf/ToSql
   yadm.core.DataMapper
-  (to-sql [dm]
-          (name (dm-setting dm :table))))
+  (to-sql
+    [dm]
+    (name (dm-setting dm :table))))
 
 (sqlh/defhelper include [sqlmap args]
   (let [[related & options] args
