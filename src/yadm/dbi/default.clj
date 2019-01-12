@@ -166,8 +166,8 @@
 
   (update!
     [this dm data options]
-    (let [pk (dm-setting dm :primary-key)
-          pk-data (select-keys data pk)
+    (let [pk         (dm-setting dm :primary-key)
+          pk-data    (select-keys data pk)
           nonpk-data (apply dissoc data pk)]
       (when (empty? pk)
         (throw (Exception. (str "Unable to update an entity without PK: "
