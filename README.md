@@ -19,7 +19,7 @@ The current version it's **not** production ready yet and the APIs **might chang
 ```clojure
 (ns example.core
   (:require [yadm.core :as yadm]
-            [yadm.dbi.default :as ydbi]))
+            [yadm.dmi.default :as ydmi]))
 
 (yadm/defdatamapper User
   :validations
@@ -50,12 +50,12 @@ The current version it's **not** production ready yet and the APIs **might chang
    :user        "an-user"
    :password    "a-password"})
 
-(yadm/find-where (ydbi/default-dbi db-spec)
+(yadm/find-where (ydmi/default-dmi db-spec)
                  User
                  (-> (yadm/query User :columns [:name])
                      (yadm/with Product)))
 
-(yadm/create! (ydbi/default-dbi db-spec)
+(yadm/create! (ydmi/default-dmi db-spec)
               User {:name  "Test"
                     :email "test@test.com"})
 ```

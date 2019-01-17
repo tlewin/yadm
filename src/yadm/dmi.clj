@@ -1,6 +1,6 @@
-(ns yadm.dbi)
+(ns yadm.dmi)
 
-(defprotocol DbInterface
+(defprotocol DMInterface
   (find-where [this dm query options])
   (create! [this dm data options])
   (update! [this dm data options])

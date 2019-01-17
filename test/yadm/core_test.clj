@@ -1,7 +1,7 @@
 (ns yadm.core-test
   (:require [clojure.test :refer :all]
             [yadm.core :refer :all]
-            [yadm.dbi :as ydbi]))
+            [yadm.dmi :as ydmi]))
 
 (def test-validations
   {:field1 [[:required]]
@@ -50,8 +50,8 @@
   (is (not (has-primary-key? T {:type :a})))
   (is (not (has-primary-key? T {:email "test@test.com"}))))
 
-(defrecord TestDBInterface [return-values]
-  ydbi/DbInterface
+(defrecord TestDMInterface [return-values]
+  ydmi/DMInterface
   (find-where
     [this dm query options]
     (:find-where (:return-values this)))
@@ -92,20 +92,20 @@
             [:range :min 0 :max 1]]})
 
 (deftest test-find-where
-  (testing "Returns the dbi/find-where return value"
-    (is (= [:a :b :c] (find-where (TestDBInterface. {:find-where [:a :b :c]})
+  (testing "Returns the dmi/find-where return value"
+    (is (= [:a :b :c] (find-where (TestDMInterface. {:find-where [:a :b :c]})
                                   Test
                                   {})))))
 
 (deftest test-create!
   (testing "Applies the validations"
-    (let [[status _ [error error-msg]] (create! (TestDBInterface. {})
+    (let [[status _ [error error-msg]] (create! (TestDMInterface. {})
                                                 Test
                                                 {})]
       (is (= status :fail))
       (is (= error  :validation))))
   (testing "Applies the proper callbacks"
-    (let [[status v _] (create! (TestDBInterface. {})
+    (let [[status v _] (create! (TestDMInterface. {})
                                 Test
                                 {:field1 0 :field2 1})]
       (is (= status :ok))
@@ -116,13 +116,13 @@
 
 (deftest test-update!
   (testing "Applies the validations"
-    (let [[status _ [error error-msg]] (update! (TestDBInterface. {})
+    (let [[status _ [error error-msg]] (update! (TestDMInterface. {})
                                                 Test
                                                 {:id 1 :field1 42 :field2 5})]
       (is (= status :fail))
       (is (= error  :validation))))
   (testing "Applies the validations only for defined fields"
-    (let [[status _ [error error-msg]] (update! (TestDBInterface. {})
+    (let [[status _ [error error-msg]] (update! (TestDMInterface. {})
                                                 Test
                                                 {:id 1 :field2 5})]
       (is (= status :fail))
@@ -131,11 +131,11 @@
   (testing "Raises an exception if primary field is not defined"
     (is (thrown-with-msg? Exception
                           #"data must contain the primary key"
-                          (update! (TestDBInterface. {})
+                          (update! (TestDMInterface. {})
                                    Test
                                    {:field1 42 :field2 5}))))
   (testing "Applies the proper callbacks"
-    (let [[status v _] (update! (TestDBInterface. {})
+    (let [[status v _] (update! (TestDMInterface. {})
                                 Test
                                 {:id 1 :field1 0 :field2 1})]
       (is (= status :ok))
@@ -149,11 +149,11 @@
   (testing "Raises an exception if primary field is not defined"
     (is (thrown-with-msg? Exception
                           #"entity-id must contain the primary key"
-                          (delete! (TestDBInterface. {})
+                          (delete! (TestDMInterface. {})
                                    Test
                                    {:not-id 1}))))
   (testing "Applies the proper callbacks"
-    (let [[status v _] (delete! (TestDBInterface. {})
+    (let [[status v _] (delete! (TestDMInterface. {})
                                 Test
                                 {:id 1})]
       (is (= status :ok))
@@ -162,15 +162,15 @@
                 :after-delete  true})))))
 
 (deftest test-update-where!
-  (testing "Returns the dbi/update-where! return value"
-    (is (= 42 (update-where! (TestDBInterface. {:update-where! 42})
+  (testing "Returns the dmi/update-where! return value"
+    (is (= 42 (update-where! (TestDMInterface. {:update-where! 42})
                              Test
                              {:field1 10}
                              [[:>= :field1 5]])))))
 
 (deftest test-delete-where!
-  (testing "Returns the dbi/delete-where! return value"
-    (is (= 42 (delete-where! (TestDBInterface. {:delete-where! 42})
+  (testing "Returns the dmi/delete-where! return value"
+    (is (= 42 (delete-where! (TestDMInterface. {:delete-where! 42})
                              Test
                              {:field1 10}
                              [[:>= :field1 5]])))))

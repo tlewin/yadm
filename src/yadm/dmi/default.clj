@@ -1,10 +1,10 @@
-(ns yadm.dbi.default
+(ns yadm.dmi.default
   (:require [clojure.java.jdbc :as jdbc]
             [inflections.core :as inf]
             [honeysql.format :as sqlf]
             [honeysql.helpers :as sqlh]
             [yadm.core :refer :all]
-            [yadm.dbi :refer [DbInterface]]
+            [yadm.dmi :refer [DMInterface]]
             [yadm.utils :as yu]))
 
 (defn- map->where-clause
@@ -138,8 +138,8 @@
            (sqlh/from [owner table-name])
            (escape-column-names table-name columns))))
 
-(defrecord DefaultDBI [db-spec options]
-  DbInterface
+(defrecord DefaultDMI [db-spec options]
+  DMInterface
   (find-where
     [this dm query options]
     (jdbc/query (:db-spec this)
@@ -212,6 +212,6 @@
                         (sqlh/delete-from dm)
                         (sqlf/format))))))
 
-(defn default-dbi
+(defn default-dmi
   [db-spec & options]
-  (DefaultDBI. db-spec options))
+  (DefaultDMI. db-spec options))
