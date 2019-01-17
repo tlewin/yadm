@@ -15,6 +15,11 @@
   :primary-key [:type :id])
 
 (deftest test-defdatamapper
+  (testing "Validate settings"
+    (is (thrown-with-msg? AssertionError
+                          #"datamapper settings must be a key/value pair"
+                          (eval '(yadm.core/defdatamapper Invalid :a))))
+    (is (var? (eval '(yadm.core/defdatamapper Valid :a 1)))))
   (testing "Keep validations"
     (is (= test-validations (dm-setting CompoudName :validations))))
   (testing "Table name"

@@ -49,6 +49,7 @@
 
 (defmacro defdatamapper
   [dm-name & settings]
+  (assert (even? (count settings)) "datamapper settings must be a key/value pair")
   `(def ~dm-name
      (DataMapper. (build-dm-settings ~(name dm-name)
                                      ~(apply hash-map settings)))))
