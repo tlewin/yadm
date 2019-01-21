@@ -12,16 +12,16 @@
   (map (fn [[k v]] [:= k v]) m))
 
 (defn- escape-column-name
-  [table-name column-name]
+  [entity-source column-name]
   (->> column-name
        (name)
-       (str (name table-name) ".")
+       (str (name entity-source) ".")
        (keyword)))
 
 (defn- escape-column-names
-  [table-name column-names]
-  (let [table-name (name table-name)]
-    (map (partial escape-column-name table-name) column-names)))
+  [entity-source column-names]
+  (let [entity-source (name entity-source)]
+    (map (partial escape-column-name entity-source) column-names)))
 
 (defn- build-has-many-through-stmt
   [sqlmap owner related options]
@@ -31,10 +31,10 @@
                            (dm-setting related :primary-key))
         owner-entity   (dm-setting owner :entity-name)
         related-entity (dm-setting related :entity-name)
-        owner-table    (dm-setting owner :table)
-        related-table  (dm-setting related :table)
+        owner-source   (dm-setting owner :entity-source)
+        related-source (dm-setting related :entity-source)
 
-        through-table  (keyword (:through options))
+        through-source (keyword (:through options))
         ;; NOTE: Should add options for configuring these keys?
         through-okey   (str (inf/underscore (name owner-entity)) "_id")
         through-rkey   (str (inf/underscore (name related-entity)) "_id")]
@@ -47,23 +47,23 @@
                               related-entity
                               related-key))))
     (-> sqlmap
-        (sqlh/merge-left-join [through-table through-table]
+        (sqlh/merge-left-join [through-source through-source]
                               [:=
-                               (escape-column-name owner-table (first (yu/collify owner-key)))
-                               (escape-column-name through-table through-okey)])
-        (sqlh/merge-join [related related-table]
+                               (escape-column-name owner-source (first (yu/collify owner-key)))
+                               (escape-column-name through-source through-okey)])
+        (sqlh/merge-join [related related-source]
                          [:=
-                          (escape-column-name through-table through-rkey)
-                          (escape-column-name related-table (first (yu/collify related-key)))]))))
+                          (escape-column-name through-source through-rkey)
+                          (escape-column-name related-source (first (yu/collify related-key)))]))))
 
 (defn- build-has-many-stmt
   [sqlmap owner related options]
-  (let [owner-key     (or (:owner-key options) (dm-setting owner :primary-key))
-        owner-entity  (dm-setting owner :entity-name)
-        owner-table   (dm-setting owner :table)
-        related-key   (or (:related-key options)
-                          (str (inf/underscore (name owner-entity)) "_id"))
-        related-table (dm-setting related :table)]
+  (let [owner-key      (or (:owner-key options) (dm-setting owner :primary-key))
+        owner-entity   (dm-setting owner :entity-name)
+        owner-source   (dm-setting owner :entity-source)
+        related-key    (or (:related-key options)
+                           (str (inf/underscore (name owner-entity)) "_id"))
+        related-source (dm-setting related :entity-source)]
     (when (or (not= (count owner-key) 1))
       (throw (Exception. (str "No support for compoud primary key: "
                               owner-entity
@@ -71,36 +71,34 @@
     (if (contains? options :through)
       (build-has-many-through-stmt sqlmap owner related options)
       (sqlh/merge-left-join sqlmap
-                            [related related-table]
+                            [related related-source]
                             [:=
-                             (escape-column-name owner-table (first (yu/collify owner-key)))
-                             (escape-column-name related-table related-key)]))))
+                             (escape-column-name owner-source (first (yu/collify owner-key)))
+                             (escape-column-name related-source related-key)]))))
 
 (defn- build-belongs-to-stmt
   [sqlmap owner related options]
   (let [related-entity (dm-setting related :entity-name)
         owner-key      (or (:owner-key options)
                            (str (inf/underscore (name related-entity)) "_id"))
-        owner-table    (dm-setting owner :table)
+        owner-source   (dm-setting owner :entity-source)
         related-key    (or (:related-key options) (dm-setting related :primary-key))
-        related-table  (dm-setting related :table)]
+        related-source (dm-setting related :entity-source)]
     (when (or (not= (count related-key) 1))
       (throw (Exception. (str "No support for compoud primary key: "
                               related-entity
                               related-key))))
     (sqlh/merge-left-join sqlmap
-                          [related related-table]
+                          [related related-source]
                           [:=
-                           (escape-column-name owner-table owner-key)
-                           (escape-column-name related-table (first (yu/collify related-key)))])))
+                           (escape-column-name owner-source owner-key)
+                           (escape-column-name related-source (first (yu/collify related-key)))])))
 
 (defn- build-association-stmt
   [sqlmap owner related]
   (let [associations               (dm-setting owner :associations)
         owner-entity               (dm-setting owner :entity-name)
-        owner-table                (dm-setting owner :table)
         related-entity             (dm-setting related :entity-name)
-        related-table              (dm-setting related :table)
         [[assoc-type _ & options]] (filter (fn [[x r & _]] (= r related-entity))
                                            associations)
         options                    (apply hash-map options)]
@@ -116,27 +114,27 @@
   yadm.core.DataMapper
   (to-sql
     [dm]
-    (name (dm-setting dm :table))))
+    (name (dm-setting dm :entity-source))))
 
 (sqlh/defhelper include [sqlmap args]
   (let [[related & options] args
         options             (apply hash-map options)
-        table-name          (dm-setting related :table)
+        entity-source       (dm-setting related :entity-source)
         columns             (or (:columns options) [:*])
         [[owner]]           (:from sqlmap)]
     (assert (datamapper? related))
     (as-> sqlmap m
       (build-association-stmt m owner related)
-      (apply sqlh/merge-select m (escape-column-names table-name columns)))))
+      (apply sqlh/merge-select m (escape-column-names entity-source columns)))))
 
 (sqlh/defhelper query [sqlmap args]
   (let [[owner & options] args
         options           (apply hash-map options)
-        table-name        (dm-setting owner :table)
+        entity-source     (dm-setting owner :entity-source)
         columns           (or (:columns options) [:*])]
     (apply sqlh/select
-           (sqlh/from [owner table-name])
-           (escape-column-names table-name columns))))
+           (sqlh/from [owner entity-source])
+           (escape-column-names entity-source columns))))
 
 (defrecord DefaultDMI [db-spec options]
   DMInterface
@@ -149,7 +147,7 @@
   (create!
     [this dm data options]
     (let [[r] (jdbc/insert! (:db-spec this)
-                            (dm-setting dm :table)
+                            (dm-setting dm :entity-source)
                             data)
           ;; TODO: Not all drivers returns the generated key.
           ;; (see http://clojure-doc.org/articles/ecosystem/java_jdbc/using_sql.html).

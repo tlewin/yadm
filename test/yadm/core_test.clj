@@ -22,8 +22,8 @@
     (is (var? (eval '(yadm.core/defdatamapper Valid :a 1)))))
   (testing "Keep validations"
     (is (= test-validations (dm-setting CompoudName :validations))))
-  (testing "Table name"
-    (is (= :compoud_names (dm-setting CompoudName :table))))
+  (testing "Entity source"
+    (is (= :compoud_names (dm-setting CompoudName :entity-source))))
   (testing "Entity name"
     (is (= :compoud-name (dm-setting CompoudName :entity-name))))
   (testing "Primary key"

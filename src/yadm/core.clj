@@ -5,7 +5,7 @@
 
 (defrecord DataMapper [settings])
 
-(defn- table-name
+(defn- entity-source
   [dm-name]
   (-> dm-name
       (inf/underscore)
@@ -42,7 +42,7 @@
 (defn build-dm-settings
   [dm-name settings]
   (-> default-settings
-      (assoc :table (table-name dm-name))
+      (assoc :entity-source (entity-source dm-name))
       (merge settings)
       (assoc :entity-name (entity-name dm-name))
       (reshape-settings)))
