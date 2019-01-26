@@ -139,7 +139,7 @@
 (defrecord DefaultDMI [db-spec options]
   DMInterface
   (find-where
-    [this dm query options]
+    [this dm where-clause options]
     (jdbc/query (:db-spec this)
                 (-> query
                     (sqlf/format))))

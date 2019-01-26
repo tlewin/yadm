@@ -1,7 +1,7 @@
 (ns yadm.dmi)
 
 (defprotocol DMInterface
-  (find-where [this dm query options])
+  (find-where [this dm where-clause options])
   (create! [this dm data options])
   (update! [this dm data options])
   (delete! [this dm entity-id options])

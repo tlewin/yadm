@@ -95,9 +95,9 @@
    fns))
 
 (defn find-where
-  ([dmi dm query] (find-where dmi dm query {}))
-  ([dmi dm query options]
-   (.find-where dmi dm query options)))
+  ([dmi dm where-clause] (find-where dmi dm where-clause {}))
+  ([dmi dm where-clause options]
+   (.find-where dmi dm where-clause options)))
 
 (defn- validation-function-pipeline
   [dm & v-options]

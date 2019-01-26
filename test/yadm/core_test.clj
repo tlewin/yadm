@@ -58,7 +58,7 @@
 (defrecord TestDMInterface [return-values]
   ydmi/DMInterface
   (find-where
-    [this dm query options]
+    [this dm where-clause options]
     (:find-where (:return-values this)))
 
   (create!
