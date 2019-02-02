@@ -63,13 +63,32 @@
                                                       :defined-fields? true)))]
       (is (= msg "not-dummy fails")))))
 
+(v/defvalidator skip-nil-validator
+  :msg "Skip nil #{value}"
+  :skip-nil? true
+  :body
+  (fn [params value]
+    (some? value)))
+
+(v/defvalidator dont-skip-nil-validator
+  :msg "Don't skip nil #{value}"
+  :skip-nil? false
+  :body
+  (fn [params value]
+    (some? value)))
+
 (defn valid?
   [value validator & vargs]
   (let [r (v/validate {:field [(concat [validator] vargs)]}
                       {:field value})]
     (empty? r)))
 
-;; TODO: Add some test here
+(deftest skip-nil-flag
+  (is (valid? 1 :skip-nil-validator))
+  (is (valid? nil :skip-nil-validator))
+  (is (valid? 1 :dont-skip-nil-validator))
+  (is (not (valid? nil :dont-skip-nil-validator))))
+
 (deftest required-validator
   (testing "valid values"
     (is (valid? "any string" :required))
