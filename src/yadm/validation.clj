@@ -27,7 +27,7 @@
   [vname & {:keys [body msg skip-nil?]
             :or {msg (str vname " has failed for {field}: {value}")
                  skip-nil? true}}]
-  (assert (some? body) "body must be provided")
+  (assert `~body "body must be a function")
   `(defmethod validate-value ~(keyword vname) [params# value#]
      (if (or (and ~skip-nil? (nil? value#))
              (~body params# value#))
