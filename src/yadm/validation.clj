@@ -28,13 +28,16 @@
             :or   {msg       (str vname " has failed for {field}: {value}")
                    skip-nil? true}}]
   (assert (some? body) "body must be a function: (fn [params value])")
-  `(defmethod validate-value ~(keyword vname) [params# value#]
-     (if (or (and ~skip-nil? (nil? value#))
-             (~body params# value#))
-       [:ok]
-       [:fail (format-validator-message
-               (merge {:value value#} params#)
-               (or (:msg params#) ~msg))])))
+  (let [params-sym (gensym "params")
+        value-sym  (gensym "value")]
+    `(defmethod validate-value ~(keyword vname) [~params-sym ~value-sym]
+       (if ~(if skip-nil?
+              `(or (nil? ~value-sym) (~body ~params-sym ~value-sym))
+              `(~body ~params-sym ~value-sym))
+         [:ok]
+         [:fail (format-validator-message
+                 (merge {:value ~value-sym} ~params-sym)
+                 (or (:msg ~params-sym) ~msg))]))))
 
 (defvalidator required
   :msg "{field} is required"
