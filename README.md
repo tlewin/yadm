@@ -52,8 +52,10 @@ The current version it's **not** production ready yet and the APIs **might chang
 
 (yadm/find-where (ydmi/default-dmi db-spec)
                  User
-                 (-> (yadm/query User :columns [:name])
-                     (yadm/with Product)))
+                 [:= :id 1]
+                 {:columns  [:id]
+                  :includes [[Product {:as      :items
+                                       :columns [:name :price]}]]})
 
 (yadm/create! (ydmi/default-dmi db-spec)
               User {:name  "Test"
