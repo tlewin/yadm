@@ -211,5 +211,7 @@
                         (sqlf/format))))))
 
 (defn default-dmi
-  [db-spec & options]
-  (DefaultDMI. db-spec options))
+  ([db-spec]
+   (default-dmi db-spec {}))
+  ([db-spec options]
+   (DefaultDMI. db-spec options)))
