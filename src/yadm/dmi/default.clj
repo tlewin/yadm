@@ -1,5 +1,6 @@
 (ns yadm.dmi.default
-  (:require [clojure.java.jdbc :as jdbc]
+  (:require [clojure.set :as set]
+            [clojure.java.jdbc :as jdbc]
             [inflections.core :as inf]
             [honeysql.format :as sqlf]
             [honeysql.helpers :as sqlh]
@@ -7,142 +8,269 @@
             [yadm.dmi :refer [DMInterface]]
             [yadm.utils :as yu]))
 
-(defn- map->where-clause
-  [m]
-  (map (fn [[k v]] [:= k v]) m))
-
-(defn- escape-column-name
-  [entity-source column-name]
-  (->> column-name
-       (name)
-       (str (name entity-source) ".")
-       (keyword)))
-
-(defn- escape-column-names
-  [entity-source column-names]
-  (let [entity-source (name entity-source)]
-    (map (partial escape-column-name entity-source) column-names)))
-
-(defn- build-has-many-through-stmt
-  [sqlmap owner related options]
-  (let [owner-key      (or (:owner-key options)
-                           (dm-setting owner :primary-key))
-        related-key    (or (:related-key options)
-                           (dm-setting related :primary-key))
-        owner-entity   (dm-setting owner :entity-name)
-        related-entity (dm-setting related :entity-name)
-        owner-source   (dm-setting owner :entity-source)
-        related-source (dm-setting related :entity-source)
-
-        through-source (keyword (:through options))
-        ;; NOTE: Should add options for configuring these keys?
-        through-okey   (str (inf/underscore (name owner-entity)) "_id")
-        through-rkey   (str (inf/underscore (name related-entity)) "_id")]
-    (when (or (not= (count owner-key) 1))
-      (throw (Exception. (str "No support for compoud primary key: "
-                              owner-entity
-                              owner-key))))
-    (when (or (not= (count related-key) 1))
-      (throw (Exception. (str "No support for compoud primary key: "
-                              related-entity
-                              related-key))))
-    (-> sqlmap
-        (sqlh/merge-left-join [through-source through-source]
-                              [:=
-                               (escape-column-name owner-source (first (yu/collify owner-key)))
-                               (escape-column-name through-source through-okey)])
-        (sqlh/merge-join [related related-source]
-                         [:=
-                          (escape-column-name through-source through-rkey)
-                          (escape-column-name related-source (first (yu/collify related-key)))]))))
-
-(defn- build-has-many-stmt
-  [sqlmap owner related options]
-  (let [owner-key      (or (:owner-key options) (dm-setting owner :primary-key))
-        owner-entity   (dm-setting owner :entity-name)
-        owner-source   (dm-setting owner :entity-source)
-        related-key    (or (:related-key options)
-                           (str (inf/underscore (name owner-entity)) "_id"))
-        related-source (dm-setting related :entity-source)]
-    (when (or (not= (count owner-key) 1))
-      (throw (Exception. (str "No support for compoud primary key: "
-                              owner-entity
-                              owner-key))))
-    (if (contains? options :through)
-      (build-has-many-through-stmt sqlmap owner related options)
-      (sqlh/merge-left-join sqlmap
-                            [related related-source]
-                            [:=
-                             (escape-column-name owner-source (first (yu/collify owner-key)))
-                             (escape-column-name related-source related-key)]))))
-
-(defn- build-belongs-to-stmt
-  [sqlmap owner related options]
-  (let [related-entity (dm-setting related :entity-name)
-        owner-key      (or (:owner-key options)
-                           (str (inf/underscore (name related-entity)) "_id"))
-        owner-source   (dm-setting owner :entity-source)
-        related-key    (or (:related-key options) (dm-setting related :primary-key))
-        related-source (dm-setting related :entity-source)]
-    (when (or (not= (count related-key) 1))
-      (throw (Exception. (str "No support for compoud primary key: "
-                              related-entity
-                              related-key))))
-    (sqlh/merge-left-join sqlmap
-                          [related related-source]
-                          [:=
-                           (escape-column-name owner-source owner-key)
-                           (escape-column-name related-source (first (yu/collify related-key)))])))
-
-(defn- build-association-stmt
-  [sqlmap owner related]
-  (let [associations               (dm-setting owner :associations)
-        owner-entity               (dm-setting owner :entity-name)
-        related-entity             (dm-setting related :entity-name)
-        [[assoc-type _ & options]] (filter (fn [[x r & _]] (= r related-entity))
-                                           associations)
-        options                    (apply hash-map options)]
-    (if (nil? assoc-type)
-      ;; NOTE: No entity found. Should throw an exception?
-      (throw (Exception. (str owner-entity " has no association for " related-entity)))
-      (case assoc-type
-        :has-many (build-has-many-stmt sqlmap owner related options)
-        :belongs-to (build-belongs-to-stmt sqlmap owner related options)
-        (throw (Exception. (str "Unknown association type: " assoc-type)))))))
-
 (extend-protocol sqlf/ToSql
   yadm.core.DataMapper
   (to-sql
     [dm]
     (name (dm-setting dm :entity-source))))
 
-(sqlh/defhelper include [sqlmap args]
-  (let [[related & options] args
-        options             (apply hash-map options)
-        entity-source       (dm-setting related :entity-source)
-        columns             (or (:columns options) [:*])
-        [[owner]]           (:from sqlmap)]
-    (assert (datamapper? related))
-    (as-> sqlmap m
-      (build-association-stmt m owner related)
-      (apply sqlh/merge-select m (escape-column-names entity-source columns)))))
-
 (sqlh/defhelper query [sqlmap args]
   (let [[owner & options] args
         options           (apply hash-map options)
         entity-source     (dm-setting owner :entity-source)
-        columns           (or (:columns options) [:*])]
-    (apply sqlh/select
-           (sqlh/from [owner entity-source])
-           (escape-column-names entity-source columns))))
+        columns           (get options :columns [:*])]
+    (apply sqlh/merge-select
+           (sqlh/from sqlmap [owner entity-source])
+           columns)))
+
+(defn- map->where-clause
+  [m]
+  (map (fn [[k v]] [:= k v]) m))
+
+(defn- columns-list
+  [columns]
+  (map (fn [c]
+         (if (coll? c)
+           ;; NOTE: Pick up the last one which is the alias for the column,
+           ;; therefore it's the key name
+           (last c)
+           c))
+       columns))
+
+(defn- has-select*?
+  [columns]
+  (some #(= :* %) (columns-list columns)))
+
+(defn- escape-columns
+  [entity-source columns]
+  (map (fn [c]
+         (if (coll? c)
+           c
+           (keyword (str (name entity-source) "." (name c)))))
+       columns))
+
+(defn- to-related-key
+  ([related-dm]
+   (to-related-key related-dm "_id"))
+  ([related-dm suffix]
+   (let [related-entity (dm-setting related-dm :entity-name)]
+     (keyword (str (inf/underscore (name related-entity))
+                   suffix)))))
+
+(defn- find-association
+  [owner-dm related-dm]
+  (let [related-entity (dm-setting related-dm :entity-name)]
+    (first
+     (filter (fn [[assoc-type r & _]] (= r related-entity))
+             (dm-setting owner-dm :associations)))))
+
+(defn- relation-map
+  [owner-dm related-dm assoc-type options]
+  (if (contains? options :relation-map)
+    (:relation-map options)
+    (let [owner-entity   (dm-setting owner-dm :entity-name)
+          related-entity (dm-setting related-dm :entity-name)]
+      (case assoc-type
+        :belongs-to {(to-related-key related-dm) :id}
+        :has-many (if (contains? options :through)
+                    {:id       (to-related-key owner-dm)
+                     :-through {(to-related-key related-dm) :id}}
+                    {:id (to-related-key owner-dm)})
+        :has-one {:id (to-related-key owner-dm)}
+        (throw (Exception. (str "Unknown association type: " assoc-type)))))))
+
+(defn- include->association-map
+  [owner-dm include]
+  (let [[related-dm i-options]   include
+        owner-entity             (dm-setting owner-dm :entity-name)
+        related-entity           (dm-setting related-dm :entity-name)
+        association              (find-association owner-dm related-dm)
+        [assoc-type _ a-options] association
+        options                  (merge {} ;; Fallback to empty map in case both are nil
+                                        a-options
+                                        i-options)]
+    (if (nil? association)
+      (throw (Exception. (str owner-entity " has no association for " related-entity)))
+      {:assoc-type   assoc-type
+       :related-dm   related-dm
+       :options      options
+       :as-field     (get options :as related-entity)
+       :relation-map (relation-map owner-dm
+                                   related-dm
+                                   assoc-type
+                                   options)})))
+
+(defn- includes->associations-map
+  [owner-dm includes]
+  (map (partial include->association-map owner-dm)
+       includes))
+
+(defn- association-keys
+  ([association]
+   (association-keys association false))
+  ([association reverse?]
+   (let [{:keys [relation-map]} association
+         relation-map           (dissoc relation-map :-through)
+         map-fn                 (if reverse? reverse identity)]
+     (map (comp first map-fn) relation-map))))
+
+(defn- ensure-keys
+  [columns ensured-keys]
+  (if (or (empty? ensured-keys)
+          (has-select*? columns))
+    columns
+    (let [missing-keys (set/difference (set ensured-keys)
+                                       (set columns))]
+      (concat columns missing-keys))))
+
+(defn- build-association-where-clause
+  [data association]
+  (let [{:keys [relation-map]} association
+        relation-map           (dissoc relation-map :-through)]
+    (if (> (count (keys relation-map)) 1)
+      ;; TODO: Add support for compound keys
+      (throw (Exception. (str "Compound key not implemented association for "
+                              (dm-setting (:related-dm association) :entity-name))))
+      (let [[owner-key related-key] (first (vec relation-map))]
+        [:in related-key (reduce conj
+                                 #{}
+                                 (map owner-key data))]))))
+
+(defn- build-association-query
+  [data association]
+  (let [{:keys [assoc-type
+                options
+                related-dm
+                relation-map]} association
+        through                (:-through relation-map)
+        related-source         (dm-setting related-dm :entity-source)
+        columns                (get options :columns [:*])
+        columns                (ensure-keys (if (nil? through)
+                                              columns
+                                              (escape-columns related-source columns))
+                                            (association-keys association true))
+        query                  (-> (query related-dm :columns columns)
+                                   (sqlh/where (build-association-where-clause data association)))]
+    (if (nil? through)
+      query
+      (apply sqlh/join query (get options :through)
+             (map->where-clause through)))))
+
+(defn- query-association
+  [db-spec data association]
+  (jdbc/query db-spec
+              (-> (build-association-query data association)
+                  (sqlf/format))))
+
+(defn- reshape-association-data
+  [association association-map]
+  (let [{:keys [assoc-type
+                options
+                relation-map]} association
+        through                (:-through relation-map)
+        columns                (get options :columns [:*])
+        columns-selector       (when-not (has-select*? columns)
+                                 (let [columns-list (columns-list columns)]
+                                   (fn [items]
+                                     (map #(select-keys % columns-list)
+                                          (yu/collify items)))))
+        cardinality-selector    (when-not (= assoc-type :has-many)
+                                  first)
+        through-selector        (when (some? through)
+                                  (let [relation-map  (dissoc relation-map :-through)
+                                        relation-keys (vals relation-map)]
+                                    (fn [items]
+                                      (map #(apply dissoc % relation-keys)
+                                           (yu/collify items)))))
+        selectors               (filter some? [columns-selector
+                                               through-selector
+                                               cardinality-selector])
+        selectors-fn            (apply comp selectors)]
+    (if (empty? selectors)
+      association-map
+      (into {} (map (fn [[k v]]
+                      [k (selectors-fn v)])
+                    association-map)))))
+
+(defn- join-association
+  [db-spec data association]
+  (if (empty? data)
+    data
+    (let [{:keys [assoc-type
+                  as-field
+                  options
+                  related-dm
+                  relation-map]} association
+          through                (:-through relation-map)
+          relation-map           (dissoc relation-map :-through)
+          related-keys           (vals relation-map)
+          owner-keys             (keys relation-map)
+          columns                (get options :columns [:*])
+          default-value          (if (= assoc-type :has-many) [] nil)
+          association-map        (->> association
+                                      (query-association db-spec data)
+                                      (group-by (fn [row]
+                                                  (vals (select-keys row related-keys))))
+                                      (reshape-association-data association))]
+      (map (fn [row]
+             (let [join-values (vals (select-keys row owner-keys))]
+               (assoc row
+                      as-field
+                      (get association-map join-values default-value))))
+           data))))
+
+(defn- query-find-where
+  [dmi dm where-clause options]
+  (let [columns  (get options :columns  [:*])
+        limit    (get options :limit    nil)
+        order-by (get options :order-by [])]
+    (jdbc/query (:db-spec dmi)
+                (cond-> (apply sqlh/where where-clause)
+                  true (query dm :columns columns)
+                  (and limit
+                       (> limit 0)) (sqlh/limit limit)
+                  (not-empty order-by) (#(apply sqlh/order-by % order-by))
+                  true (sqlf/format)))))
+
+(defn- format-find-where
+  [data associations options]
+  (let [columns (get options :columns [:*])]
+    (if (has-select*? columns)
+      data
+      (let [columns-list (concat (columns-list columns)
+                                 (map :as-field associations))]
+        (map (fn [row]
+               (select-keys row columns-list))
+             data)))))
 
 (defrecord DefaultDMI [db-spec options]
   DMInterface
   (find-where
     [this dm where-clause options]
-    (jdbc/query (:db-spec this)
-                (-> query
-                    (sqlf/format))))
+    (let [columns           (get options :columns  [:*])
+          includes          (get options :includes [])
+          associations      (includes->associations-map dm includes)
+          ;; reduce all association keys into a set
+          associations-keys (reduce #(into %1 (association-keys %2))
+                                    #{}
+                                    associations)
+          data              (query-find-where this
+                                              dm
+                                              where-clause
+                                              (assoc options
+                                                     :columns
+                                                     (ensure-keys
+                                                      columns
+                                                      associations-keys)))]
+      (format-find-where
+       (reduce (fn [data association]
+                 (join-association (:db-spec this)
+                                   data
+                                   association))
+               data
+               associations)
+       associations
+       options)))
 
   (create!
     [this dm data options]
