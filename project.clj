@@ -1,4 +1,4 @@
-(defproject yadm "0.1.0-SNAPSHOT"
+(defproject yadm "0.1.1"
   :description "Simple Clojure library for data mapping"
   :url "https://github.com/tlewin/yadm"
   :license {:name "Eclipse Public License"
