@@ -21,6 +21,16 @@ The current version it's **not** production ready yet and the APIs **might chang
   (:require [yadm.core :as yadm]
             [yadm.dmi.default :as ydmi]))
 
+(def db-spec
+  {:classname   "org.postgresql.Driver"
+   :subprotocol "postgresql"
+   :subname     "//localhost:5432/a_db_name"
+   :user        "an-user"
+   :password    "a-password"})
+
+(def dmi
+  (ydmi/default-dmi db-spec))
+
 (yadm/defdatamapper User
   :validations
   {:name  [[:required]]
@@ -43,21 +53,14 @@ The current version it's **not** production ready yet and the APIs **might chang
   :associations
   [[:belongs-to :user]])
 
-(def db-spec
-  {:classname   "org.postgresql.Driver"
-   :subprotocol "postgresql"
-   :subname     "//localhost:5432/a_db_name"
-   :user        "an-user"
-   :password    "a-password"})
-
-(yadm/find-where (ydmi/default-dmi db-spec)
+(yadm/find-where dmi
                  User
                  [:= :id 1]
                  {:columns  [:id]
                   :includes [[Product {:as      :items
                                        :columns [:name :price]}]]})
 
-(yadm/create! (ydmi/default-dmi db-spec)
+(yadm/create! dmi
               User {:name  "Test"
                     :email "test@test.com"})
 ```
