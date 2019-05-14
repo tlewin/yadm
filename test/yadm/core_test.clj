@@ -179,3 +179,21 @@
                              Test
                              {:field1 10}
                              [[:>= :field1 5]])))))
+
+(defdatamapper TestUpdateFieldWith
+  :before-create [(update-field-with :field inc)])
+
+(deftest test-update-field-with
+  (testing "Updates a given field value with a function"
+    (let [[status v _] (create! (TestDMInterface. {})
+                                TestUpdateFieldWith
+                                {:field 0})]
+      (is (= status :ok))
+      (is (= v {:field 1}))))
+
+  (testing "Skips the update if field is not present"
+    (let [[status v _] (create! (TestDMInterface. {})
+                                TestUpdateFieldWith
+                                {:other-field 1})]
+      (is (= status :ok))
+      (is (= v {:other-field 1})))))

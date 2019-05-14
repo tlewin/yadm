@@ -72,6 +72,14 @@
   [value]
   (UpdatedValue. value))
 
+(defn update-field-with
+  [field f]
+  (fn [dm value]
+    (if (contains? value field)
+      (let [k (get value field)]
+        (update-value
+         (update-in value [field] f))))))
+
 (deftype HaltedValue [error])
 
 (defn- halted-execution?
