@@ -25,10 +25,12 @@
    :validations     {}
    :associations    []
    :before-validate []
+   :before-save     []
    :before-create   []
    :before-update   []
    :before-delete   []
    :after-validate  []
+   :after-save      []
    :after-create    []
    :after-update    []
    :after-delete    []})
@@ -134,9 +136,11 @@
       dm
       (flatten [(validation-function-pipeline dm)
                 (dm-setting dm :before-create)
+                (dm-setting dm :before-save)
                 (fn [dm value]
                   (update-value (.create! dmi dm value options)))
-                (dm-setting dm :after-create)]))
+                (dm-setting dm :after-create)
+                (dm-setting dm :after-save)]))
      (format-pipeline-result))))
 
 (defn has-primary-key?
@@ -160,9 +164,11 @@
       dm
       (flatten [(validation-function-pipeline dm :defined-fields? true)
                 (dm-setting dm :before-update)
+                (dm-setting dm :before-save)
                 (fn [dm value]
                   (update-value (.update! dmi dm value options)))
-                (dm-setting dm :after-update)]))
+                (dm-setting dm :after-update)
+                (dm-setting dm :after-save)]))
      (format-pipeline-result))))
 
 (defn delete!

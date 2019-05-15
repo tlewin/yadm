@@ -85,6 +85,8 @@
     (:delete-where! (:return-values this))))
 
 (defdatamapper Test
+  :before-save   [(fn [dm v] (update-value (assoc v :before-save true)))]
+  :after-save    [(fn [dm v] (update-value (assoc v :after-save true)))]
   :before-create [(fn [dm v] (update-value (assoc v :before-create true)))]
   :after-create  [(fn [dm v] (update-value (assoc v :after-create true)))]
   :before-update [(fn [dm v] (update-value (assoc v :before-update true)))]
@@ -116,6 +118,8 @@
       (is (= status :ok))
       (is (= v {:field1        0
                 :field2        1
+                :before-save   true
+                :after-save    true
                 :before-create true
                 :after-create  true})))))
 
@@ -147,6 +151,8 @@
       (is (= v {:id            1
                 :field1        0
                 :field2        1
+                :before-save   true
+                :after-save    true
                 :before-update true
                 :after-update  true})))))
 
