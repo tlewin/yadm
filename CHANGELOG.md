@@ -2,7 +2,8 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
-- Added `update-field-with` callback wrapper.
+- Add {before,after}-save callbacks.
+- Add `update-field-with` callback wrapper.
 
 ## [0.1.1]
 ### Added
